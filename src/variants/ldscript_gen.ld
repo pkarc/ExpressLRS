@@ -14,13 +14,18 @@ _Min_BL_Size = 0x80;      /* required amount of bootloader data */
 /* Define output sections */
 SECTIONS
 {
-  /* The startup code goes first into FLASH */
-  .isr_vector :
+  /* Critical program code goes into RAM_CODE */
+  ram_code = LOADADDR(.ram_code);
+  .ram_code :
   {
     . = ALIGN(4);
-    KEEP(*(.isr_vector)) /* Startup code */
+    ram_code_start = .;
+    KEEP(*(.isr_vector))
+    *(.ram_code)
+    *(.ram_code*)
     . = ALIGN(4);
-  } >FLASH
+    ram_code_end = .;
+  } >RAM_CODE AT> FLASH
 
   /* The program code and other data goes into FLASH */
   .text :
@@ -75,18 +80,6 @@ SECTIONS
     KEEP (*(.fini_array*))
     PROVIDE_HIDDEN (__fini_array_end = .);
   } >FLASH
-
-  /* Critical program code goes into RAM_CODE */
-  ram_code = LOADADDR(.ram_code);
-  .ram_code :
-  {
-    . = ALIGN(4);
-    ram_code_start = .;
-    *(.ram_code)
-    *(.ram_code*)
-    . = ALIGN(4);
-    ram_code_end = .;
-  } >RAM_CODE AT> FLASH
 
   /* used by the startup to initialize data */
   _sidata = LOADADDR(.data);
