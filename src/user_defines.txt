@@ -11,7 +11,7 @@
 ### BINDING PHRASE: ###
 # Uncomment the line below to use a hardcoded binding phrase
 # Leave commented to use traditional binding
-#-DMY_BINDING_PHRASE="Pkarc.fpv!5920"
+-DMY_BINDING_PHRASE="Pkarc.fpv!5920"
 
 
 ### REGULATORY DOMAIN: ###
@@ -35,7 +35,7 @@
 -DFAST_SYNC
 
 #unlocks >250mw output power for R9M and Happy Model ES915TX (Fan mod suggested: https://github.com/AlessandroAU/ExpressLRS/wiki/R9M-Fan-Mod-Cover)
-#-DUNLOCK_HIGHER_POWER
+-DUNLOCK_HIGHER_POWER
 
 #-DNO_SYNC_ON_ARM
 
@@ -54,7 +54,7 @@
 
 ### OTHER OPTIONS: ###
 
--DAUTO_WIFI_ON_INTERVAL=20
+#-DAUTO_WIFI_ON_INTERVAL=20
 
 #-DJUST_BEEP_ONCE
 #-DMY_STARTUP_MELODY="B5 16 P16 B5 16 P16 B5 16 P16 B5 2 G5 2 A5 2 B5 8 P4 A5 8 B5 1|140|-3"
@@ -62,7 +62,7 @@
 #-DUSE_500HZ
 
 # Comment this to disable advanced telemetry.
-#-DENABLE_TELEMETRY
+-DENABLE_TELEMETRY
 
 #Comment this to disable diversity function
 #-DUSE_DIVERSITY
