@@ -10,7 +10,7 @@
 
 ### BINDING PHRASE: ### 
 
--DMY_BINDING_PHRASE="default ExpressLRS binding phrase"
+-DMY_BINDING_PHRASE="Pkarc.fpv!5920"
 
 
 ### REGULATORY DOMAIN: ### 
@@ -19,13 +19,13 @@
 #-DRegulatory_Domain_EU_868
 #-DRegulatory_Domain_AU_433
 #-DRegulatory_Domain_EU_433
-#-DRegulatory_Domain_FCC_915
+-DRegulatory_Domain_FCC_915
 #-DRegulatory_Domain_ISM_2400
 
 
 ### SWITCHES: ### 
 
-#-DHYBRID_SWITCHES_8
+-DHYBRID_SWITCHES_8
 
 
 ### PERFORMANCE OPTIONS: ### 
@@ -34,7 +34,7 @@
 -DFAST_SYNC 
 
 #unlocks >250mw output power for R9M (Fan mod suggested: https://github.com/AlessandroAU/ExpressLRS/wiki/R9M-Fan-Mod-Cover)
-#-DR9M_UNLOCK_HIGHER_POWER
+-DR9M_UNLOCK_HIGHER_POWER
 
 #-DNO_SYNC_ON_ARM
 #-DARM_CHANNEL=AUX1
