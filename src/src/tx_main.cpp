@@ -225,15 +225,16 @@ void ICACHE_RAM_ATTR GenerateSyncPacketData()
 void ICACHE_RAM_ATTR SetRFLinkRate(uint8_t index) // Set speed of RF link (hz)
 {
   expresslrs_mod_settings_s *const ModParams = get_elrs_airRateConfig(index);
-  if (ModParams == ExpressLRS_currAirRate_Modparams)
-    return;
   expresslrs_rf_pref_params_s *const RFperf = get_elrs_RFperfParams(index);
-  if (RFperf == ExpressLRS_currAirRate_RFperfParams)
+  bool invertIQ = UID[5] & 0x01;
+  if ((ModParams == ExpressLRS_currAirRate_Modparams)
+    && (RFperf == ExpressLRS_currAirRate_RFperfParams)
+    && (invertIQ == Radio.IQinverted))
     return;
 
   Serial.println("set rate");
   hwTimer.updateInterval(ModParams->interval);
-  Radio.Config(ModParams->bw, ModParams->sf, ModParams->cr, GetInitialFreq(), ModParams->PreambleLen, bool(UID[5] & 0x01));
+  Radio.Config(ModParams->bw, ModParams->sf, ModParams->cr, GetInitialFreq(), ModParams->PreambleLen, invertIQ);
 
   ExpressLRS_currAirRate_Modparams = ModParams;
   ExpressLRS_currAirRate_RFperfParams = RFperf;
@@ -400,7 +401,7 @@ void sendLuaParams()
 
 void UARTdisconnected()
 {
-  #ifdef GPIO_PIN_BUZZER
+  #if defined(GPIO_PIN_BUZZER)
   const uint16_t beepFreq[] = {676, 520};
   const uint16_t beepDurations[] = {300, 150};
   for (int i = 0; i < 2; i++)
@@ -419,7 +420,7 @@ void UARTdisconnected()
 
 void UARTconnected()
 {
-  #ifdef GPIO_PIN_BUZZER
+  #if defined(GPIO_PIN_BUZZER) && !defined(DISABLE_STARTUP_BEEP)
   const uint16_t beepFreq[] = {520, 676};
   const uint16_t beepDurations[] = {150, 300};
   for (int i = 0; i < 2; i++)
@@ -631,7 +632,7 @@ void setup()
     digitalWrite(GPIO_PIN_LED_RED, LOW ^ GPIO_LED_RED_INVERTED);
   #endif // GPIO_PIN_LED_RED
 
-  #if defined(GPIO_PIN_BUZZER) && (GPIO_PIN_BUZZER != UNDEF_PIN)
+  #if defined(GPIO_PIN_BUZZER) && (GPIO_PIN_BUZZER != UNDEF_PIN) && !defined(DISABLE_STARTUP_BEEP)
     pinMode(GPIO_PIN_BUZZER, OUTPUT);
     // Annoying startup beeps
     #ifndef JUST_BEEP_ONCE
@@ -737,7 +738,6 @@ void setup()
     delay(1000);
   }
   #ifdef ENABLE_TELEMETRY
-  TelemetryReceiver.ResetState();
   TelemetryReceiver.SetDataToReceive(sizeof(CRSFinBuffer), CRSFinBuffer, ELRS_TELEMETRY_BYTES_PER_CALL);
   #endif
   POWERMGNT.setDefaultPower();
@@ -754,7 +754,6 @@ void setup()
   hwTimer.init();
   //hwTimer.resume();  //uncomment to automatically start the RX timer and leave it running
   crsf.Begin();
-  MspSender.ResetState();
 }
 
 void loop()
@@ -883,13 +882,9 @@ void OnRFModePacket(mspPacket_t *packet)
   switch (rfMode)
   {
   case RATE_200HZ:
-    SetRFLinkRate(enumRatetoIndex(RATE_200HZ));
-    break;
   case RATE_100HZ:
-    SetRFLinkRate(enumRatetoIndex(RATE_100HZ));
-    break;
   case RATE_50HZ:
-    SetRFLinkRate(enumRatetoIndex(RATE_50HZ));
+    SetRFLinkRate(enumRatetoIndex((expresslrs_RFrates_e)rfMode));
     break;
   default:
     // Unsupported rate requested
@@ -904,36 +899,8 @@ void OnTxPowerPacket(mspPacket_t *packet)
   CHECK_PACKET_PARSING();
   Serial.println("TX setpower");
 
-  switch (txPower)
-  {
-  case PWR_10mW:
-    POWERMGNT.setPower(PWR_10mW);
-    break;
-  case PWR_25mW:
-    POWERMGNT.setPower(PWR_25mW);
-    break;
-  case PWR_50mW:
-    POWERMGNT.setPower(PWR_50mW);
-    break;
-  case PWR_100mW:
-    POWERMGNT.setPower(PWR_100mW);
-    break;
-  case PWR_250mW:
-    POWERMGNT.setPower(PWR_250mW);
-    break;
-  case PWR_500mW:
-    POWERMGNT.setPower(PWR_500mW);
-    break;
-  case PWR_1000mW:
-    POWERMGNT.setPower(PWR_1000mW);
-    break;
-  case PWR_2000mW:
-    POWERMGNT.setPower(PWR_2000mW);
-    break;
-  default:
-    // Unsupported power requested
-    break;
-  }
+  if (txPower < PWR_COUNT)
+    POWERMGNT.setPower((PowerLevels_e)txPower);
 }
 
 void OnTLMRatePacket(mspPacket_t *packet)
@@ -991,7 +958,11 @@ void EnterBindingMode()
       return;
   }
 
-  // Start periodically sending the current UID as MSP packets
+  // Disable the TX timer and wait for any TX to complete
+  hwTimer.stop();
+  while (busyTransmitting);
+
+  // Queue up sending the Master UID as MSP packets
   SendUIDOverMSP();
 
   // Set UID to special binding values
@@ -1003,13 +974,14 @@ void EnterBindingMode()
   UID[5] = BindingUID[5];
 
   CRCInitializer = 0;
-
   InBindingMode = true;
 
   // Start attempting to bind
   // Lock the RF rate and freq while binding
   SetRFLinkRate(RATE_DEFAULT);
   Radio.SetFrequencyReg(GetInitialFreq());
+  // Start transmitting again
+  hwTimer.resume();
 
   Serial.print("Entered binding mode at freq = ");
   Serial.println(Radio.currFreq);
@@ -1035,6 +1007,7 @@ void ExitBindingMode()
 
   InBindingMode = false;
   MspSender.ResetState();
+  SetRFLinkRate(config.GetRate()); //return to original rate
 
   Serial.println("Exiting binding mode");
 }
@@ -1042,10 +1015,10 @@ void ExitBindingMode()
 void SendUIDOverMSP()
 {
   BindingPackage[0] = MSP_ELRS_BIND;
-  BindingPackage[1] = UID[2];
-  BindingPackage[2] = UID[3];
-  BindingPackage[3] = UID[4];
-  BindingPackage[4] = UID[5];
+  BindingPackage[1] = MasterUID[2];
+  BindingPackage[2] = MasterUID[3];
+  BindingPackage[3] = MasterUID[4];
+  BindingPackage[4] = MasterUID[5];
   MspSender.ResetState();
   BindingSendCount = 0;
   MspSender.SetDataToTransmit(5, BindingPackage, ELRS_MSP_BYTES_PER_CALL);

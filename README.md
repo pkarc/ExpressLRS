@@ -1,9 +1,9 @@
 ![Banner](img/banner.png)
 
 ## Need help? Confused? Join the Community!
- * [Community Discord](https://discord.gg/dS6ReFY)
- * [Facebook Group](https://www.facebook.com/groups/636441730280366)
- * [Wiki](https://github.com/ExpressLRS/ExpressLRS/wiki)
+ * [<img src="https://camo.githubusercontent.com/79fcdc7c43f1a1d7c175827976ffee8177814a016fb1b9578ff70f1aef759578/68747470733a2f2f6564656e742e6769746875622e696f2f537570657254696e7949636f6e732f696d616765732f7376672f646973636f72642e737667" width="15" height="15"> Community Discord](https://discord.gg/dS6ReFY)
+ * [<img src="https://camo.githubusercontent.com/8f245234577766478eaf3ee72b0615e99bb9ef3eaa56e1c37f75692811181d5c/68747470733a2f2f6564656e742e6769746875622e696f2f537570657254696e7949636f6e732f696d616765732f7376672f66616365626f6f6b2e737667" width="15" height="15"> Facebook Group](https://www.facebook.com/groups/636441730280366)
+ * [<img src="https://camo.githubusercontent.com/b079fe922f00c4b86f1b724fbc2e8141c468794ce8adbc9b7456e5e1ad09c622/68747470733a2f2f6564656e742e6769746875622e696f2f537570657254696e7949636f6e732f696d616765732f7376672f6769746875622e737667" width="15" height="15"> Wiki](https://github.com/ExpressLRS/ExpressLRS/wiki)
 
 ## Support ExpressLRS
 If you would like to support the development of ExpressLRS please feel free to make a small donation. This helps us buy hardware for porting, development and prototyping. Show your support for which new features you want added by leaving a message when you donate<br/><br/>
@@ -37,7 +37,7 @@ More information can be found in the [wiki](https://github.com/AlessandroAU/Expr
 
 ## Starting Out
 
-After taking a look at the [supported Hardware](https://github.com/AlessandroAU/ExpressLRS/wiki/Supported-Off-The-Shelf-Hardware) and making sure you have the required hardware, the [Quick Start Guide](https://github.com/AlessandroAU/ExpressLRS/wiki/Toolchain-and-Git-Setup) is written to walk through the process of flashing ELRS for the first time
+After taking a look at the [supported Hardware](https://github.com/ExpressLRS/ExpressLRS/wiki/Supported-Hardware) and making sure you have the required hardware, the [Quick Start Guide](https://github.com/AlessandroAU/ExpressLRS/wiki/Toolchain-and-Git-Setup) is written to walk through the process of flashing ELRS for the first time
 
 
 ## Supported Hardware
@@ -73,7 +73,9 @@ After taking a look at the [supported Hardware](https://github.com/AlessandroAU/
     - [DIY JR Bay](https://github.com/AlessandroAU/ExpressLRS/tree/master/PCB/2400MHz/TX_SX1280) (Full Support, 27dBm, supports WiFi Updates)
     - [DIY Slim TX](https://github.com/AlessandroAU/ExpressLRS/tree/master/PCB/2400MHz/TX_SX1280_Slim) (Full Support, 27dBm, supports Wifi Updates, fits Slim Bay)
     - [DIY Slimmer TX](https://github.com/AlessandroAU/ExpressLRS/tree/master/PCB/2400MHz/TX_SX1280_Slimmer) (Full Support, 27dBm, supports Wifi Updates, fits Slim Bay)
-    - [GHOST TX](https://www.immersionrc.com/fpv-products/ghost/) (Beta Support, 250 mW output power)
+    - [GHOST TX](https://www.immersionrc.com/fpv-products/ghost/) (Full Support, 250 mW output power)
+    - [GHOST TX Lite](https://www.immersionrc.com/fpv-products/ghost/) (Beta Support, 100 mW output power)
+    - [HappyModel TX](http://www.happymodel.cn/index.php/2021/04/12/happymodel-2-4g-expresslrs-elrs-micro-tx-module-es24tx/) (Full Support, 250 mW output power)
 - **RX**
     - [GHOST Atto](https://www.immersionrc.com/fpv-products/ghost/) (Full Support, Only STLink Flashing)
     - [GHOST Zepto](https://www.immersionrc.com/fpv-products/ghost/) (Full Support, Only STLink Flashing)
@@ -81,6 +83,8 @@ After taking a look at the [supported Hardware](https://github.com/AlessandroAU/
     - [DIY Nano RX](https://github.com/AlessandroAU/ExpressLRS/tree/master/PCB/2400MHz/RX_Nano) (Full Support, CRSF Nano Footprint, WiFi Updating)
     - [DIY Nano CCG RX](https://github.com/AlessandroAU/ExpressLRS/tree/master/PCB/2400MHz/RX_CCG_Nano) (Full Support, CRSF Nano Pinout, STM32 Based)
     - [DIY Nano Ceramic RX](https://github.com/AlessandroAU/ExpressLRS/tree/master/PCB/2400MHz/RX_Nano_Ceramic) (Full Support, CRSF Nano Footprint, WiFi Updating, Built in antenna)
+    - [HappyModel PP RX](http://www.happymodel.cn/index.php/2021/04/10/happymodel-2-4g-expresslrs-elrs-nano-series-receiver-module-pp-rx-ep1-rx-ep2-rx/) (Full Support, CRSF Nano Pinout, STM32 Based)
+    - [HappyModel EP1/EP2 RX](http://www.happymodel.cn/index.php/2021/04/10/happymodel-2-4g-expresslrs-elrs-nano-series-receiver-module-pp-rx-ep1-rx-ep2-rx/) (Full Support, CRSF Nano Pinout, ESP8285 Based, WiFi Updating)
 
 **For a more exhaustive list refer to the [Supported Hardware](https://github.com/AlessandroAU/ExpressLRS/wiki/Supported-Hardware) page on the wiki**
 

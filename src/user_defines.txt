@@ -31,9 +31,6 @@
 
 ### PERFORMANCE OPTIONS: ###
 
-#Improves Inital Syncing/Binding Speed (Currently Experimental)
--DFAST_SYNC
-
 #unlocks >250mw output power for R9M and Happy Model ES915TX (Fan mod suggested: https://github.com/AlessandroAU/ExpressLRS/wiki/R9M-Fan-Mod-Cover)
 -DUNLOCK_HIGHER_POWER
 
@@ -42,7 +39,7 @@
 -DFEATURE_OPENTX_SYNC
 #-DFEATURE_OPENTX_SYNC_AUTOTUNE
 
-#-DLOCK_ON_FIRST_CONNECTION
+-DLOCK_ON_FIRST_CONNECTION
 
 ### COMPATIBILITY OPTIONS: ###
 
@@ -57,6 +54,7 @@
 #-DAUTO_WIFI_ON_INTERVAL=20
 
 #-DJUST_BEEP_ONCE
+#-DDISABLE_STARTUP_BEEP
 #-DMY_STARTUP_MELODY="B5 16 P16 B5 16 P16 B5 16 P16 B5 2 G5 2 A5 2 B5 8 P4 A5 8 B5 1|140|-3"
 
 #-DUSE_500HZ

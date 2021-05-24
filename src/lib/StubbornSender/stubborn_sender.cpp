@@ -16,6 +16,7 @@ void StubbornSender::ResetState()
     length = 0;
     waitUntilTelemetryConfirm = true;
     waitCount = 0;
+    maxWaitCount = 1000;
     senderState = SENDER_IDLE;
 }
 
@@ -85,7 +86,7 @@ void StubbornSender::ConfirmCurrentPayload(bool telemetryConfirmValue)
         if (telemetryConfirmValue != waitUntilTelemetryConfirm)
         {
             waitCount++;
-            if (waitCount > WAIT_FOR_RESYNC)
+            if (waitCount > maxWaitCount)
             {
                 waitUntilTelemetryConfirm = !telemetryConfirmValue;
                 nextSenderState = RESYNC;
@@ -111,6 +112,16 @@ void StubbornSender::ConfirmCurrentPayload(bool telemetryConfirmValue)
             nextSenderState = SENDER_IDLE;
             waitUntilTelemetryConfirm = !telemetryConfirmValue;
         }
+        // switch to resync if tx does not confirm value fast enough
+        else if (senderState == WAIT_UNTIL_NEXT_CONFIRM)
+        {
+            waitCount++;
+            if (waitCount > maxWaitCount)
+            {
+                waitUntilTelemetryConfirm = !telemetryConfirmValue;
+                nextSenderState = RESYNC;
+            }
+        }
 
         break;
     case SENDER_IDLE:
@@ -119,4 +130,19 @@ void StubbornSender::ConfirmCurrentPayload(bool telemetryConfirmValue)
     }
 
     senderState = nextSenderState;
+}
+
+/*
+ * Called when the telemetry ratio or air rate changes, calculate
+ * the new threshold for how many times the telemetryConfirmValue
+ * can be wrong in a row before giving up and going to RESYNC
+ */
+void StubbornSender::UpdateTelemetryRate(uint16_t airRate, uint8_t tlmRatio, uint8_t tlmBurst)
+{
+    // consipicuously unused airRate parameter, the wait count is strictly based on number
+    // of packets, not time between the telemetry packets, or a wall clock timeout
+    (void)airRate;
+    // The expected number of packet periods between telemetry packets
+    uint32_t packsBetween = tlmRatio * (1 + tlmBurst) / tlmBurst;
+    maxWaitCount = packsBetween * SSENDER_MAX_MISSED_PACKETS;
 }
