@@ -63,4 +63,4 @@
 -DENABLE_TELEMETRY
 
 #Comment this to disable diversity function
-#-DUSE_DIVERSITY
+-DUSE_DIVERSITY
