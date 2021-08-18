@@ -12,8 +12,9 @@
 
 #if defined(TARGET_1000mW_MODULE) || \
     defined(TARGET_R9M_TX)        || \
-    defined(TARGET_TX_ES915TX)
-#ifdef UNLOCK_HIGHER_POWER
+    defined(TARGET_TX_ES915TX)    || \
+    defined(TARGET_ES900TX)
+#if defined(UNLOCK_HIGHER_POWER) || defined(TARGET_NAMIMNORC_TX)
 #define MaxPower PWR_2000mW
 #else
 #define MaxPower PWR_250mW
@@ -22,6 +23,18 @@
 
 #elif defined(TARGET_R9M_LITE_PRO_TX)
 #define MaxPower PWR_1000mW
+#define DefaultPowerEnum PWR_50mW
+
+#elif defined(TARGET_TX_BETAFPV_900_V1)
+#define MaxPower PWR_500mW
+#define DefaultPowerEnum PWR_100mW
+
+#elif defined(TARGET_TX_BETAFPV_2400_V1)
+#define MaxPower PWR_500mW
+#define DefaultPowerEnum PWR_50mW
+
+#elif defined(TARGET_RX_BETAFPV_2400_V1)
+#define MaxPower PWR_100mW
 #define DefaultPowerEnum PWR_100mW
 
 #elif defined(TARGET_TX_ESP32_E28_SX1280_V1) || \
@@ -80,4 +93,9 @@ public:
     static uint8_t powerToCrsfPower(PowerLevels_e Power);
     static void setDefaultPower();
     static void init();
+    static void powerLedInit();
+    static void powerLedUpdate();
+    #if defined(TARGET_TX_BETAFPV_2400_V1) || defined(TARGET_TX_BETAFPV_900_V1)
+        static void handleCyclePower();
+    #endif
 };
