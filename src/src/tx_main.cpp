@@ -51,7 +51,7 @@ uint32_t LEDupdateCounterMillis;
 #include "STM32F3_WS2812B_LED.h"
 #endif
 
-const uint8_t thisCommit[6] = {LATEST_COMMIT};
+const uint8_t thisCommit[6] = {0, 1, 0, 1, 0, 0}; // {MAJOR , MAJOR , MINOR, MINOR, PATCH, PATCH}
 
 //// CONSTANTS ////
 #define RX_CONNECTION_LOST_TIMEOUT 3000LU // After 3000ms of no TLM response consider that slave has lost connection
@@ -77,7 +77,7 @@ volatile uint8_t NonceTX;
 bool webUpdateMode = false;
 
 //// MSP Data Handling ///////
-uint32_t MSPPacketLastSent = 0;  // time in ms when the last switch data packet was sent
+bool NextPacketIsMspData = false;  // if true the next packet will contain the msp data
 
 ////////////SYNC PACKET/////////
 /// sync packet spamming on mode change vars ///
@@ -101,8 +101,6 @@ uint32_t HWtimerPauseDuration = 0;
 #define OPENTX_LUA_UPDATE_INTERVAL 1000
 uint32_t LuaLastUpdated = 0;
 uint8_t luaCommitPacket[7] = {(uint8_t)0xFE, thisCommit[0], thisCommit[1], thisCommit[2], thisCommit[3], thisCommit[4], thisCommit[5]};
-
-uint32_t PacketLastSentMicros = 0;
 
 bool WaitRXresponse = false;
 bool WaitEepromCommit = false;
@@ -329,7 +327,7 @@ void ICACHE_RAM_ATTR SendRCdataToRF()
   }
   else
   {
-    if ((millis() > (MSP_PACKET_SEND_INTERVAL + MSPPacketLastSent)) && MspSender.IsActive())
+    if (NextPacketIsMspData && MspSender.IsActive())
     {
       MspSender.GetCurrentPayload(&packageIndex, &maxLength, &data);
       Radio.TXdataBuffer[0] = MSP_DATA_PACKET & 0b11;
@@ -339,12 +337,15 @@ void ICACHE_RAM_ATTR SendRCdataToRF()
       Radio.TXdataBuffer[4] = maxLength >= 2 ? *(data + 2) : 0;
       Radio.TXdataBuffer[5] = maxLength >= 3 ? *(data + 3): 0;
       Radio.TXdataBuffer[6] = maxLength >= 4 ? *(data + 4): 0;
-      MSPPacketLastSent = millis();
+      // send channel data next so the channel messages also get sent during msp transmissions
+      NextPacketIsMspData = false;
       // counter can be increased even for normal msp messages since it's reset if a real bind message should be sent
       BindingSendCount++;
     }
     else
     {
+      // always enable msp after a channel package since the slot is only used if MspSender has data to send
+      NextPacketIsMspData = true;
       #ifdef ENABLE_TELEMETRY
       GenerateChannelData(Radio.TXdataBuffer, &crsf, TelemetryReceiver.GetCurrentConfirm());
       #else
@@ -366,9 +367,15 @@ void ICACHE_RAM_ATTR SendRCdataToRF()
  */
 void ICACHE_RAM_ATTR timerCallbackNormal()
 {
-  busyTransmitting = true;
-  PacketLastSentMicros = micros();
-  SendRCdataToRF();
+  // Do not send a stale channels packet to the RX if one has not been received from the handset
+  // *Do* send data if a packet has never been received from handset and the timer is running
+  //     this is the case when bench testing and TXing without a handset
+  uint32_t lastRcData = crsf.GetRCdataLastRecv();
+  if (!lastRcData || (micros() - lastRcData < 1000000))
+  {
+    busyTransmitting = true;
+    SendRCdataToRF();
+  }
 }
 
 /*
@@ -595,6 +602,7 @@ void ICACHE_RAM_ATTR TXdoneISR()
   HandleTLM();
 }
 
+
 void setup()
 {
 #if defined(TARGET_TX_GHOST)
@@ -681,6 +689,11 @@ void setup()
   digitalWrite(GPIO_PIN_UART1RX_INVERT, HIGH);
 #endif
 
+#if defined(TARGET_TX_BETAFPV_2400_V1) || defined(TARGET_TX_BETAFPV_900_V1)
+  button.buttonTriplePress = &EnterBindingMode;
+  button.buttonLongPress = &POWERMGNT.handleCyclePower;
+#endif
+
 #ifdef PLATFORM_ESP32
 #ifdef GPIO_PIN_LED
   strip.Begin();
@@ -703,7 +716,6 @@ void setup()
 
   Serial.println("ExpressLRS TX Module Booted...");
 
-  POWERMGNT.init();
   Radio.currFreq = GetInitialFreq(); //set frequency first or an error will occur!!!
   #if !defined(Regulatory_Domain_ISM_2400)
   //Radio.currSyncWord = UID[3];
@@ -740,7 +752,8 @@ void setup()
   #ifdef ENABLE_TELEMETRY
   TelemetryReceiver.SetDataToReceive(sizeof(CRSFinBuffer), CRSFinBuffer, ELRS_TELEMETRY_BYTES_PER_CALL);
   #endif
-  POWERMGNT.setDefaultPower();
+
+  POWERMGNT.init();
 
   eeprom.Begin(); // Init the eeprom
   config.SetStorageProvider(&eeprom); // Pass pointer to the Config class for access to storage
