@@ -22,12 +22,12 @@
 #-DRegulatory_Domain_IN_866
 #-DRegulatory_Domain_AU_433
 #-DRegulatory_Domain_EU_433
-#-DRegulatory_Domain_FCC_915
+-DRegulatory_Domain_FCC_915
 
 ### PERFORMANCE OPTIONS: ###
 
 #unlocks >250mw output power for R9M and Happy Model ES915TX (Fan mod suggested: https://github.com/AlessandroAU/ExpressLRS/wiki/R9M-Fan-Mod-Cover)
-#-DUNLOCK_HIGHER_POWER
+-DUNLOCK_HIGHER_POWER
 
 #-DNO_SYNC_ON_ARM
 
@@ -60,7 +60,7 @@
 
 ### OTHER OPTIONS: ###
 
--DAUTO_WIFI_ON_INTERVAL=60
+#-DAUTO_WIFI_ON_INTERVAL=60
 #-DHOME_WIFI_SSID=""
 #-DHOME_WIFI_PASSWORD=""
 
@@ -79,7 +79,7 @@
 #-DMY_STARTUP_MELODY="B5 16 P16 B5 16 P16 B5 16 P16 B5 2 G5 2 A5 2 B5 8 P4 A5 8 B5 1|140|-3"
 
 #Comment this to disable diversity function
-#-DUSE_DIVERSITY
+-DUSE_DIVERSITY
 
 #If commented out the LED is RGB otherwise GRB
 #-DWS2812_IS_GRB
