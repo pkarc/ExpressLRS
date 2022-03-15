@@ -43,7 +43,7 @@
 #define POWER_OUTPUT_DAC                0b0001100
 #define MinPower                        PWR_10mW
 #define HighPower                       PWR_250mW
-#define MaxPower                        PWR_1000mW
+#define MaxPower                        PWR_2000mW
 #if !defined(POWER_OUTPUT_VALUES)
     #if defined(Regulatory_Domain_EU_868)
         #define POWER_OUTPUT_VALUES {650,860,1000,1160,1420,1730,2100,2600}
