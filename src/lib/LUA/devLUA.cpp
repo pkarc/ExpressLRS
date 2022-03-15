@@ -21,8 +21,6 @@ extern SX1280Driver Radio;
 #error "Radio configuration is not valid!"
 #endif
 
-static const char thisCommit[] = {LATEST_COMMIT, 0};
-static const char thisVersion[] = {LATEST_VERSION, 0};
 static const char emptySpace[1] = {0};
 static char strPowerLevels[] = "10;25;50;100;250;500;1000;2000";
 
@@ -72,6 +70,13 @@ static struct luaItem_selection luaFanThreshold = {
 };
 #endif
 
+#if defined(Regulatory_Domain_EU_CE_2400)
+static struct luaItem_string luaCELimit = {
+    {"10mW CE LIMIT", CRSF_INFO},
+    emptySpace
+};
+#endif
+
 //----------------------------POWER------------------
 
 static struct luaItem_selection luaSwitch = {
@@ -100,8 +105,8 @@ static struct luaItem_string luaInfo = {
 };
 
 static struct luaItem_string luaELRSversion = {
-    {thisVersion, CRSF_INFO},
-    thisCommit
+    {version, CRSF_INFO},
+    commit
 };
 
 //---------------------------- WiFi -----------------------------
@@ -195,6 +200,35 @@ struct luaItem_selection luaBluetoothTelem = {
 };
 #endif
 
+#if defined(USE_TX_BACKPACK)
+//---------------------------- BACKPACK ------------------
+static struct luaItem_folder luaBackpackFolder = {
+    {"Backpack", CRSF_FOLDER},
+};
+
+static struct luaItem_selection luaDvrAux = {
+    {"DVR AUX", CRSF_TEXT_SELECTION},
+    0, // value
+    "Off;AUX1;!AUX1;AUX2;!AUX2;AUX3;!AUX3;AUX4;!AUX4;AUX5;!AUX5;AUX6;!AUX6;AUX7;!AUX7;AUX8;!AUX8;AUX9;!AUX9;AUX10;!AUX10",
+    emptySpace
+};
+
+static struct luaItem_selection luaDvrStartDelay = {
+    {"DVR Srt Dly", CRSF_TEXT_SELECTION},
+    0, // value
+    "0s;5s;15s;30s;45s;1min;2min",
+    emptySpace
+};
+
+static struct luaItem_selection luaDvrStopDelay = {
+    {"DVR Stp Dly", CRSF_TEXT_SELECTION},
+    0, // value
+    "0s;5s;15s;30s;45s;1min;2min",
+    emptySpace
+};
+#endif // USE_TX_BACKPACK
+
+//---------------------------- BACKPACK ------------------
 
 static char luaBadGoodString[10];
 
@@ -306,8 +340,10 @@ static void registerLuaParameters()
 #if defined(GPIO_PIN_FAN_EN)
   registerLUAParameter(&luaFanThreshold, [](uint8_t id, uint8_t arg){
       config.SetPowerFanThreshold(arg);
-      POWERMGNT::setFanEnableTheshold((PowerLevels_e)arg);
   }, luaPowerFolder.common.id);
+#endif
+#if defined(Regulatory_Domain_EU_CE_2400)
+  registerLUAParameter(&luaCELimit, NULL, luaPowerFolder.common.id);
 #endif
   // VTX folder
   registerLUAParameter(&luaVtxFolder);
@@ -339,12 +375,12 @@ static void registerLuaParameters()
         //confirm run on ELRSv2.lua or start command from CRSF configurator,
         //since ELRS LUA can do 2 step confirmation, it needs confirmation to start wifi to prevent stuck on
         //unintentional button press.
-        sendLuaCommandResponse(&luaWebUpdate, 2, "Wifi Running...");
+        sendLuaCommandResponse(&luaWebUpdate, 2, "WiFi Running...");
         connectionState = wifiUpdate;
       }
       else if (arg > 0 && arg < 4)
       {
-        sendLuaCommandResponse(&luaWebUpdate, 3, "Enter WiFi Update Mode?");
+        sendLuaCommandResponse(&luaWebUpdate, 3, "Enter WiFi Update?");
       }
       else if (arg == 5)
       {
@@ -381,6 +417,20 @@ static void registerLuaParameters()
     }
     sendLuaCommandResponse(&luaVRxBackpackUpdate, arg < 5 ? 2 : 0, arg < 5 ? "Sending..." : "");
   },luaWiFiFolder.common.id);
+  #endif // USE_TX_BACKPACK
+
+  #if defined(USE_TX_BACKPACK)
+  // Backpack folder
+  registerLUAParameter(&luaBackpackFolder);
+  registerLUAParameter(&luaDvrAux, [](uint8_t id, uint8_t arg){
+      config.SetDvrAux(arg);
+  },luaBackpackFolder.common.id);
+  registerLUAParameter(&luaDvrStartDelay, [](uint8_t id, uint8_t arg){
+      config.SetDvrStartDelay(arg);
+  },luaBackpackFolder.common.id);
+  registerLUAParameter(&luaDvrStopDelay, [](uint8_t id, uint8_t arg){
+      config.SetDvrStopDelay(arg);
+  },luaBackpackFolder.common.id);
   #endif // USE_TX_BACKPACK
 
   #if defined(PLATFORM_ESP32)
@@ -448,6 +498,12 @@ static int event()
   #if defined(TARGET_TX_FM30)
     setLuaTextSelectionValue(&luaBluetoothTelem, !digitalRead(GPIO_PIN_BLUETOOTH_EN));
   #endif
+
+  #if defined(USE_TX_BACKPACK)
+  setLuaTextSelectionValue(&luaDvrAux,config.GetDvrAux());
+  setLuaTextSelectionValue(&luaDvrStartDelay,config.GetDvrStartDelay());
+  setLuaTextSelectionValue(&luaDvrStopDelay,config.GetDvrStopDelay());
+  #endif // USE_TX_BACKPACK
   return DURATION_IMMEDIATELY;
 }
 

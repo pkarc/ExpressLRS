@@ -13,6 +13,14 @@
 #define WORD_ALIGNED_ATTR __attribute__((aligned(4)))
 
 #ifdef PLATFORM_STM32
+/* ICACHE_RAM_ATTR1 is always linked into RAM */
+#define ICACHE_RAM_ATTR1  __section(".ram_code")
+/* ICACHE_RAM_ATTR2 is linked into RAM only if enough space */
+#if RAM_CODE_LIMITED
+#define ICACHE_RAM_ATTR2
+#else
+#define ICACHE_RAM_ATTR2 __section(".ram_code")
+#endif
 #define ICACHE_RAM_ATTR //nothing//
 #else
 #undef ICACHE_RAM_ATTR //fix to allow both esp32 and esp8266 to use ICACHE_RAM_ATTR for mapping to IRAM
@@ -71,6 +79,41 @@
 #endif
 #ifndef GPIO_LED_GREEN_INVERTED
 #define GPIO_LED_GREEN_INVERTED 0
+#endif
+#ifndef GPIO_LED_BLUE_INVERTED
+#define GPIO_LED_BLUE_INVERTED 0
+#endif
+
+#if !defined(BACKPACK_LOGGING_BAUD)
+#define BACKPACK_LOGGING_BAUD 460800
+#endif
+
+#if defined(TARGET_TX)
+#if defined(PLATFORM_ESP32) || defined(PLATFORM_ESP8266)
+#ifndef GPIO_PIN_DEBUG_RX
+#define GPIO_PIN_DEBUG_RX       3
+#endif
+#ifndef GPIO_PIN_DEBUG_TX
+#define GPIO_PIN_DEBUG_TX       1
+#endif
+#endif
+#if defined(DEBUG_LOG) || defined(DEBUG_LOG_VERBOSE) || defined(USE_TX_BACKPACK)
+#if GPIO_PIN_RCSIGNAL_TX == GPIO_PIN_DEBUG_TX || GPIO_PIN_RCSIGNAL_TX == GPIO_PIN_DEBUG_RX
+#error "Cannot debug out the RC signal port!"
+#endif
+#if !defined(GPIO_PIN_DEBUG_RX) || !defined(GPIO_PIN_DEBUG_TX) || GPIO_PIN_DEBUG_RX == UNDEF_PIN || GPIO_PIN_DEBUG_TX == UNDEF_PIN
+#error "When using DEBUG_LOG, DEBUG_LOG_VERBOSE or USE_TX_BACKPACK you must define both GPIO_PIN_DEBUG_RX and GPIO_PIN_DEBUG_TX"
+#endif
+#endif
+#else // TARGET_RX
+#if defined(PLATFORM_ESP8266)
+#ifndef GPIO_PIN_DEBUG_RX
+#define GPIO_PIN_DEBUG_RX       3
+#endif
+#ifndef GPIO_PIN_DEBUG_TX
+#define GPIO_PIN_DEBUG_TX       1
+#endif
+#endif
 #endif
 
 #if defined(Regulatory_Domain_ISM_2400)

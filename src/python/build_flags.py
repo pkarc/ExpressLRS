@@ -61,6 +61,7 @@ def escapeChars(x):
         x = parts.group(1) + '="' + parts.group(2).translate(str.maketrans({
             "!": "\\\\\\\\041",
             "\"": "\\\\\\\\042",
+            "#": "\\\\\\\\043",
             "$": "\\\\\\\\044",
             "&": "\\\\\\\\046",
             "'": "\\\\\\\\047",
@@ -81,34 +82,61 @@ def condense_flags():
     for line in build_flags:
         # Some lines have multiple flags so this will split them and remove them all
         for flag in re.findall("!-D\s*[^\s]+", line):
-            build_flags = [x.replace(flag[1:],"") for x in build_flags] # remove the flag which will just leave ! in their place
-    build_flags = [x.replace("!", "") for x in build_flags]  # remove the !
-    build_flags = [x for x in build_flags if (x.strip() != "")] # remove any blank items
+            build_flags = [x.replace(flag,"") for x in build_flags] # remove the removal flag
+            build_flags = [x.replace(flag[1:],"") for x in build_flags] # remove the flag if it matches the removal flag
     build_flags = [escapeChars(x) for x in build_flags] # perform escaping of flags with values
+    build_flags = [x for x in build_flags if (x.strip() != "")] # remove any blank items
+
+def version_to_env():
+    ver = elrs_helpers.get_git_version()
+    env.Append(GIT_SHA = ver['sha'], GIT_VERSION= ver['version'])
+
+def regulatory_domain_to_env():
+    regions = [("AU_915", "AU915"), ("EU_868", "EU868"), ("IN_866", "IN866"), ("AU_433", "AU433"), ("EU_433", "EU433"), ("FCC_915","FCC915"), ("ISM_2400", "ISM2G4"), ("EU_CE_2400", "CE2G4")]
+    retVal = "UNK"
+    if ("_2400" in target_name or \
+        '-DRADIO_2400=1' in build_flags) and \
+        '-DRegulatory_Domain_EU_CE_2400' not in build_flags:
+        retVal = "ISM2G4"
+    else:
+        for k, v in regions:
+            if fnmatch.filter(build_flags, '*-DRegulatory_Domain_'+k):
+                retVal = v
+                break
+    env.Append(REG_DOMAIN = retVal)
+
+def string_to_ascii(str):
+    return ",".join(["%s" % ord(char) for char in str])
 
 def get_git_sha():
-    sha = elrs_helpers.get_git_version(env)['sha']
-    return ",".join(["%s" % ord(x) for x in sha])
+    return string_to_ascii(env.get('GIT_SHA'))
 
-def get_git_version():
-    ver = elrs_helpers.get_git_version(env)['version']
-    return ",".join(["%s" % ord(char) for char in ver])
+def get_ver_and_reg():
+    return string_to_ascii(env.get('GIT_VERSION') + " " + env.get('REG_DOMAIN'))
+
 
 process_flags("user_defines.txt")
 process_flags("super_defines.txt") # allow secret super_defines to override user_defines
+version_to_env()
+regulatory_domain_to_env()
 build_flags.append("-DLATEST_COMMIT=" + get_git_sha())
-build_flags.append("-DLATEST_VERSION=" + get_git_version())
+build_flags.append("-DLATEST_VERSION=" + get_ver_and_reg()) # version and domain
 build_flags.append("-DTARGET_NAME=" + re.sub("_VIA_.*", "", target_name))
 condense_flags()
 
-if "_2400" not in target_name and \
-        not fnmatch.filter(build_flags, '-DRADIO_2400=1') and \
-        not fnmatch.filter(build_flags, '*-DRegulatory_Domain*'):
-    print_error('Please define a Regulatory_Domain in user_defines.txt')
+if '-DRADIO_900=1' in build_flags:
+    # disallow setting 2400s for 900
+    if fnmatch.filter(build_flags, '*-DRegulatory_Domain_ISM_2400') or \
+        fnmatch.filter(build_flags, '*-DRegulatory_Domain_EU_CE_2400'):
+        print_error('Regulatory_Domain 2400 not compatible with RADIO_900')
 
+    # require a domain be set for 900
+    if not fnmatch.filter(build_flags, '*-DRegulatory_Domain*'):
+        print_error('Please define a Regulatory_Domain in user_defines.txt')
+
+# Remove ISM_2400 domain flag if not unit test, it is defined per target config
 if fnmatch.filter(build_flags, '*Regulatory_Domain_ISM_2400*') and \
         target_name != "NATIVE":
-    # Remove ISM_2400 domain flag if not unit test, it is defined per target config
     build_flags = [f for f in build_flags if "Regulatory_Domain_ISM_2400" not in f]
 
 env['BUILD_FLAGS'] = build_flags

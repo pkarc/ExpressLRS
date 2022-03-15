@@ -5,6 +5,7 @@
 // Features
 #define USE_TX_BACKPACK
 #define USE_OLED_SPI
+#define HAS_FIVE_WAY_BUTTON
 
 // GPIO pin definitions
 #define GPIO_PIN_RST            21
@@ -35,16 +36,16 @@
 #define GPIO_PIN_RCSIGNAL_TX    13
 #define GPIO_PIN_FAN_EN         2
 
-/* Backpack logger connection */
-#define GPIO_PIN_DEBUG_RX       3
-#define GPIO_PIN_DEBUG_TX       1
-
 /* WS2812 led */
 #define GPIO_PIN_LED_WS2812     4
 
-// Output Power
+/* Output Power */
 #define MinPower                PWR_25mW
 #define MaxPower                PWR_1000mW
 #define POWER_OUTPUT_VALUES     {-18,-13,-10,-5,-2,3}
 
+/* Joystick values              {UP, DOWN, LEFT, RIGHT, ENTER, IDLE}*/
+#define JOY_ADC_VALUES          {1850, 900, 490, 1427, 0, 2978}
+
+/* Frequency */
 #define Regulatory_Domain_ISM_2400 1

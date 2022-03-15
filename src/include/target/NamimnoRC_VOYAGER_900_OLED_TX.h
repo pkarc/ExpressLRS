@@ -34,10 +34,6 @@
 #define GPIO_PIN_RCSIGNAL_TX    13
 #define GPIO_PIN_FAN_EN         2
 
-/* Backpack logger connection */
-#define GPIO_PIN_DEBUG_RX       3
-#define GPIO_PIN_DEBUG_TX       1
-
 /* WS2812 led */
 #define GPIO_PIN_LED_WS2812     4
 
@@ -46,3 +42,6 @@
 #define MinPower                PWR_25mW
 #define MaxPower                PWR_2000mW
 #define POWER_OUTPUT_VALUES     {57,67,76,90,112,132,167,201}
+
+/* Joystick values              {UP, DOWN, LEFT, RIGHT, ENTER, IDLE}*/
+#define JOY_ADC_VALUES          {1850, 900, 490, 1427, 0, 2978}
