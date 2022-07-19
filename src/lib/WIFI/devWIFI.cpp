@@ -327,51 +327,53 @@ static void WebUpdateHandleNotFound(AsyncWebServerRequest *request)
 }
 
 static void WebUploadResponseHandler(AsyncWebServerRequest *request) {
-  if (Update.hasError()) {
-    StreamString p = StreamString();
-    Update.printError(p);
-    p.trim();
-    DBGLN("Failed to upload firmware: %s", p.c_str());
-    AsyncWebServerResponse *response = request->beginResponse(200, "application/json", String("{\"status\": \"error\", \"msg\": \"") + p + "\"}");
+  if (target_seen) {
+    String msg;
+    if (Update.end()) {
+      DBGLN("Update complete, rebooting");
+      msg = String("{\"status\": \"ok\", \"msg\": \"Update complete. ");
+      #if defined(TARGET_RX)
+        msg += "Please wait for the LED to resume blinking before disconnecting power.\"}";
+      #else
+        msg += "Please wait for a few seconds while the device reboots.\"}";
+      #endif
+      rebootTime = millis() + 200;
+    } else {
+      StreamString p = StreamString();
+      if (Update.hasError()) {
+        Update.printError(p);
+      } else {
+        p.println("Not enough data uploaded!");
+      }
+      p.trim();
+      DBGLN("Failed to upload firmware: %s", p.c_str());
+      msg = String("{\"status\": \"error\", \"msg\": \"") + p + "\"}";
+    }
+    AsyncWebServerResponse *response = request->beginResponse(200, "application/json", msg);
     response->addHeader("Connection", "close");
     request->send(response);
     request->client()->close();
   } else {
-    if (target_seen) {
-      DBGLN("Update complete, rebooting");
-      String success = String("{\"status\": \"ok\", \"msg\": \"Update complete. ");
-      #if defined(TARGET_RX)
-        success += "Please wait for the LED to resume blinking before disconnecting power.\"}";
-      #else
-        success += "Please wait for a few seconds while the device reboots.\"}";
-      #endif
-      AsyncWebServerResponse *response = request->beginResponse(200, "application/json", success);
-      response->addHeader("Connection", "close");
-      request->send(response);
-      request->client()->close();
-      rebootTime = millis() + 200;
-    } else {
-      String message = String("{\"status\": \"mismatch\", \"msg\": \"<b>Current target:</b> ") + (const char *)&target_name[4] + ".<br>";
-      if (target_found.length() != 0) {
-        message += "<b>Uploaded image:</b> " + target_found + ".<br/>";
-      }
-      message += "<br/>Flashing the wrong firmware may lock or damage your device.\"}";
-      request->send(200, "application/json", message);
+    String message = String("{\"status\": \"mismatch\", \"msg\": \"<b>Current target:</b> ") + (const char *)&target_name[4] + ".<br>";
+    if (target_found.length() != 0) {
+      message += "<b>Uploaded image:</b> " + target_found + ".<br/>";
     }
+    message += "<br/>Flashing the wrong firmware may lock or damage your device.\"}";
+    request->send(200, "application/json", message);
   }
 }
 
 static void WebUploadDataHandler(AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final) {
+  force_update = force_update || request->hasArg("force");
   if (index == 0) {
-    DBGLN("Update: %s", filename.c_str());
+    size_t filesize = request->header("X-FileSize").toInt();
+    DBGLN("Update: '%s' size %u", filename.c_str(), filesize);
     #if defined(PLATFORM_ESP8266)
     Update.runAsync(true);
     uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
     DBGLN("Free space = %u", maxSketchSpace);
-    if (!Update.begin(maxSketchSpace, U_FLASH)){//start with max available size
-    #else
-    if (!Update.begin()) { //start with max available size
     #endif
+    if (!Update.begin(filesize, U_FLASH)) { // pass the size provided
       Update.printError(LOGGING_UART);
     }
     target_seen = false;
@@ -410,16 +412,8 @@ static void WebUploadDataHandler(AsyncWebServerRequest *request, const String& f
         }
       }
       totalSize += len;
-    }
-  }
-  if (final && !Update.getError()) {
-    DBGVLN("finish");
-    if (target_seen) {
-      if (Update.end(true)) { //true to set the size to the current progress
-        DBGLN("Upload Success: %ubytes\nPlease wait for LED to resume blinking before disconnecting power", totalSize);
-      } else {
-        Update.printError(LOGGING_UART);
-      }
+    } else {
+      DBGLN("write failed to write %d", len);
     }
   }
 }
@@ -427,11 +421,6 @@ static void WebUploadDataHandler(AsyncWebServerRequest *request, const String& f
 static void WebUploadForceUpdateHandler(AsyncWebServerRequest *request) {
   target_seen = true;
   if (request->arg("action").equals("confirm")) {
-    if (Update.end(true)) { //true to set the size to the current progress
-      DBGLN("Upload Success: %ubytes\nPlease wait for LED to resume blinking before disconnecting power", totalSize);
-    } else {
-      Update.printError(LOGGING_UART);
-    }
     WebUploadResponseHandler(request);
   } else {
     #if defined(PLATFORM_ESP32)
