@@ -37,7 +37,7 @@
 # dropped below the configured Fan Threshold. This prevents the fan from turning on and off every
 # few seconds if the power level is constantly changing.
 # Default is 30 seconds if not defined, value can be 0-254.
-#-DFAN_MIN_RUNTIME=30
+-DFAN_MIN_RUNTIME=20
 
 ### COMPATIBILITY OPTIONS: ###
 
