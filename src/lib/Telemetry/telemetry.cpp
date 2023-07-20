@@ -74,16 +74,8 @@ bool Telemetry::GetNextPayload(uint8_t* nextPayloadSize, uint8_t **payloadData)
         payloadTypes[currentPayloadIndex].locked = true;
 
         realLength = CRSF_FRAME_SIZE(payloadTypes[currentPayloadIndex].data[CRSF_TELEMETRY_LENGTH_INDEX]);
-        // search for non zero data from the end
-        while (realLength > 0 && payloadTypes[currentPayloadIndex].data[realLength - 1] == 0)
-        {
-            realLength--;
-        }
-
         if (realLength > 0)
         {
-            // store real length in frame
-            payloadTypes[currentPayloadIndex].data[CRSF_TELEMETRY_LENGTH_INDEX] = realLength - CRSF_FRAME_NOT_COUNTED_BYTES;
             *nextPayloadSize = realLength;
             *payloadData = payloadTypes[currentPayloadIndex].data;
             return true;
@@ -290,7 +282,7 @@ bool Telemetry::AppendTelemetryPackage(uint8_t *package)
         {
             if (header->type == payloadTypes[i].type)
             {
-                if (!payloadTypes[i].locked && CRSF_FRAME_SIZE(package[CRSF_TELEMETRY_LENGTH_INDEX]) <= payloadTypes[i].size)
+                if (CRSF_FRAME_SIZE(package[CRSF_TELEMETRY_LENGTH_INDEX]) <= payloadTypes[i].size)
                 {
                     targetIndex = i;
                     targetFound = true;
@@ -306,7 +298,7 @@ bool Telemetry::AppendTelemetryPackage(uint8_t *package)
         }
     }
 
-    if (targetFound)
+    if (targetFound && !payloadTypes[targetIndex].locked)
     {
         memcpy(payloadTypes[targetIndex].data, package, CRSF_FRAME_SIZE(package[CRSF_TELEMETRY_LENGTH_INDEX]));
         payloadTypes[targetIndex].updated = true;
