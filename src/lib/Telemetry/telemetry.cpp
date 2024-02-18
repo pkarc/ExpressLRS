@@ -8,12 +8,18 @@
 extern TCPSOCKET wifi2tcp;
 #endif
 
+#if defined(HAS_MSP_VTX) && defined(TARGET_RX)
+#include "devMSPVTX.h"
+#endif
+
 #if defined(UNIT_TEST)
 #include <iostream>
 using namespace std;
 #endif
 
 #if CRSF_RX_MODULE
+
+#include "crsf2msp.h"
 
 Telemetry::Telemetry()
 {
@@ -48,6 +54,13 @@ bool Telemetry::ShouldSendDeviceFrame()
     return deviceFrame;
 }
 
+void Telemetry::CheckCrsfBatterySensorDetected()
+{
+    if (CRSFinBuffer[CRSF_TELEMETRY_TYPE_INDEX] == CRSF_FRAMETYPE_BATTERY_SENSOR)
+    {
+        crsfBatterySensorDetected = true;
+    }
+}
 
 PAYLOAD_DATA(GPS, BATTERY_SENSOR, ATTITUDE, DEVICE_INFO, FLIGHT_MODE, VARIO, BARO_ALTITUDE);
 
@@ -135,7 +148,10 @@ bool Telemetry::RXhandleUARTin(uint8_t data)
 {
     switch(telemetry_state) {
         case TELEMETRY_IDLE:
-            if (data == CRSF_ADDRESS_CRSF_RECEIVER || data == CRSF_SYNC_BYTE)
+            // Telemetry from Betaflight/iNav starts with CRSF_SYNC_BYTE (CRSF_ADDRESS_FLIGHT_CONTROLLER)
+            // from a TX module it will be addressed to CRSF_ADDRESS_RADIO_TRANSMITTER (RX used as a relay)
+            // and things addressed to CRSF_ADDRESS_CRSF_RECEIVER I guess we should take too since that's us, but we'll just forward them
+            if (data == CRSF_SYNC_BYTE || data == CRSF_ADDRESS_RADIO_TRANSMITTER || data == CRSF_ADDRESS_CRSF_RECEIVER)
             {
                 currentTelemetryByte = 0;
                 telemetry_state = RECEIVING_LENGTH;
@@ -171,6 +187,11 @@ bool Telemetry::RXhandleUARTin(uint8_t data)
                 if (data == crc)
                 {
                     AppendTelemetryPackage(CRSFinBuffer);
+
+                    // Special case to check here and not in AppendTelemetryPackage().  devAnalogVbat sends
+                    // direct to AppendTelemetryPackage() and we want to detect packets only received through serial.
+                    CheckCrsfBatterySensorDetected();
+
                     receivedPackages++;
                     return true;
                 }
@@ -247,7 +268,7 @@ bool Telemetry::AppendTelemetryPackage(uint8_t *package)
                 if (wifi2tcp.hasClient() && (header->type == CRSF_FRAMETYPE_MSP_RESP || header->type == CRSF_FRAMETYPE_MSP_REQ)) // if we have a client we probs wanna talk to it
                 {
                     DBGLN("Got MSP frame, forwarding to client, len: %d", currentTelemetryByte);
-                    CRSF::crsf2msp.parse(package);
+                    crsf2msp.parse(package);
                 }
                 else // if no TCP client we just want to forward MSP over the link
             #endif
@@ -255,6 +276,9 @@ bool Telemetry::AppendTelemetryPackage(uint8_t *package)
                 // larger msp resonses are sent in two chunks so special handling is needed so both get sent
                 if (header->type == CRSF_FRAMETYPE_MSP_RESP)
                 {
+#if defined(HAS_MSP_VTX) && defined(TARGET_RX)
+                    mspVtxProcessPacket(package);
+#endif
                     // there is already another response stored
                     if (payloadTypes[targetIndex].updated)
                     {

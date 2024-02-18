@@ -92,7 +92,7 @@ def bf_passthrough_init(port, requestedBaudrate, half_duplex=False):
             if SCRIPT_DEBUG:
                 dbg_print("  '%s'" % line)
             config = re.search('serial ([0-9]+) ([0-9]+) ', line)
-            if config and config.group(2) == "64":
+            if config and (int(config.group(2)) & 64 == 64):
                 dbg_print("    ** Serial RX config detected: '%s'" % line)
                 SerialRXindex = config.group(1)
                 if not SCRIPT_DEBUG:
@@ -129,7 +129,7 @@ def reset_to_bootloader(port, baud, target, action, accept=None, half_duplex=Fal
         time.sleep(0.2)
     rl.write(BootloaderInitSeq)
     s.flush()
-    rx_target = rl.read_line().strip()
+    rx_target = rl.read_line().strip().upper()
     if target is not None:
         flash_target = re.sub("_VIA_.*", "", target.upper())
         ignore_incorrect_target = action == "uploadforce"
@@ -150,13 +150,13 @@ def reset_to_bootloader(port, baud, target, action, accept=None, half_duplex=Fal
 
     return ElrsUploadResult.Success
 
-def init_passthrough(source, target, env):
+def init_passthrough(source, target, env) -> int:
     env.AutodetectUploadPort([env])
     try:
         bf_passthrough_init(env['UPLOAD_PORT'], env['UPLOAD_SPEED'])
     except PassthroughEnabled as err:
         dbg_print(str(err))
-    reset_to_bootloader(env['UPLOAD_PORT'], env['UPLOAD_SPEED'], env['PIOENV'], source[0])
+    return reset_to_bootloader(env['UPLOAD_PORT'], env['UPLOAD_SPEED'], env['PIOENV'], source[0])
 
 def main(custom_args = None):
     parser = argparse.ArgumentParser(

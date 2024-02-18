@@ -5,11 +5,29 @@
 #include "devServoOutput.h"
 
 extern void deferExecution(uint32_t ms, std::function<void()> f);
+extern void reconfigureSerial();
 
 extern bool InLoanBindingMode;
 extern bool returnModelFromLoan;
 
 static char modelString[] = "000";
+static const char *pwmModes = "50Hz;60Hz;100Hz;160Hz;333Hz;400Hz;10kHzDuty;On/Off";
+static const char *txModes = "50Hz;60Hz;100Hz;160Hz;333Hz;400Hz;10kHzDuty;On/Off;Serial TX";
+static const char *rxModes = "50Hz;60Hz;100Hz;160Hz;333Hz;400Hz;10kHzDuty;On/Off;Serial RX";
+
+static struct luaItem_selection luaSerialProtocol = {
+    {"Protocol", CRSF_TEXT_SELECTION},
+    0, // value
+    "CRSF;Inverted CRSF;SBUS;Inverted SBUS;SUMD;DJI RS Pro",
+    STR_EMPTYSPACE
+};
+
+static struct luaItem_selection luaFailsafeMode = {
+    {"Failsafe Mode", CRSF_TEXT_SELECTION},
+    0, // value
+    "No Pulses;Last Pos",
+    STR_EMPTYSPACE
+};
 
 #if defined(POWER_OUTPUT_VALUES)
 static struct luaItem_selection luaTlmPower = {
@@ -99,7 +117,7 @@ static struct luaItem_int8 luaMappingChannelIn = {
 static struct luaItem_selection luaMappingOutputMode = {
     {"Output Mode", CRSF_TEXT_SELECTION},
     0, // value
-    "50Hz;60Hz;100Hz;160Hz;333Hz;400Hz;10kHzDuty;On/Off",
+    pwmModes,
     STR_EMPTYSPACE
 };
 
@@ -142,6 +160,18 @@ static void luaparamMappingChannelOut(struct luaPropertiesCommon *item, uint8_t 
 {
   setLuaUint8Value(&luaMappingChannelOut, arg);
   // Must trigger an event because this is not a persistent config item
+  if (GPIO_PIN_PWM_OUTPUTS[arg-1] == 3)
+  {
+    luaMappingOutputMode.options = rxModes;
+  }
+  else if (GPIO_PIN_PWM_OUTPUTS[arg-1] == 1)
+  {
+    luaMappingOutputMode.options = txModes;
+  }
+  else
+  {
+    luaMappingOutputMode.options = pwmModes;
+  }
   devicesTriggerEvent();
 }
 
@@ -155,13 +185,61 @@ static void luaparamMappingChannelIn(struct luaPropertiesCommon *item, uint8_t a
   config.SetPwmChannelRaw(ch, newPwmCh.raw);
 }
 
+static void configureSerialPin(uint8_t pin, uint8_t sibling, uint8_t oldMode, uint8_t newMode)
+{
+  for (int ch=0 ; ch<GPIO_PIN_PWM_OUTPUTS_COUNT ; ch++)
+  {
+    if (GPIO_PIN_PWM_OUTPUTS[ch] == sibling)
+    {
+      // Retain as much of the sibling's current config as possible
+      rx_config_pwm_t siblingPinConfig;
+      siblingPinConfig.raw = config.GetPwmChannel(ch)->raw;
+
+      // If the new mode is serial, the sibling is also forced to serial
+      if (newMode == somSerial)
+      {
+        siblingPinConfig.val.mode = somSerial;
+      }
+      // If the new mode is not serial, and the sibling is serial, set the sibling to PWM (50Hz)
+      else if (siblingPinConfig.val.mode == somSerial)
+      {
+        siblingPinConfig.val.mode = som50Hz;
+      }
+
+      config.SetPwmChannelRaw(ch, siblingPinConfig.raw);
+      break;
+    }
+  }
+
+  if (oldMode != newMode)
+  {
+    deferExecution(100, [](){
+      reconfigureSerial();
+    });
+  }
+}
+
 static void luaparamMappingOutputMode(struct luaPropertiesCommon *item, uint8_t arg)
 {
   const uint8_t ch = luaMappingChannelOut.properties.u.value - 1;
   rx_config_pwm_t newPwmCh;
   newPwmCh.raw = config.GetPwmChannel(ch)->raw;
+  uint8_t oldMode = newPwmCh.val.mode;
   newPwmCh.val.mode = arg;
 
+  // Check if pin == 1/3 and do other pin adjustment accordingly
+  if (GPIO_PIN_PWM_OUTPUTS[ch] == 1)
+  {
+    configureSerialPin(1, 3, oldMode, arg);
+  }
+  else if (GPIO_PIN_PWM_OUTPUTS[ch] == 3)
+  {
+    configureSerialPin(3, 1, oldMode, arg);
+  }
+  else if (arg == somSerial)
+  {
+    newPwmCh.val.mode = oldMode;
+  }
   config.SetPwmChannelRaw(ch, newPwmCh.raw);
 }
 
@@ -196,8 +274,8 @@ static void luaparamSetFalisafe(struct luaPropertiesCommon *item, uint8_t arg)
       rx_config_pwm_t newPwmCh;
       newPwmCh.raw = config.GetPwmChannel(ch)->raw;
       // The value must fit into the 10 bit range of the failsafe
-      newPwmCh.val.failsafe = CRSF_to_UINT10(constrain(CRSF::ChannelData[config.GetPwmChannel(ch)->val.inputChannel], CRSF_CHANNEL_VALUE_MIN, CRSF_CHANNEL_VALUE_MAX));
-      //DBGLN("FSCH(%u) crsf=%u us=%u", ch, CRSF::ChannelData[ch], newPwmCh.val.failsafe+988U);
+      newPwmCh.val.failsafe = CRSF_to_UINT10(constrain(ChannelData[config.GetPwmChannel(ch)->val.inputChannel], CRSF_CHANNEL_VALUE_MIN, CRSF_CHANNEL_VALUE_MAX));
+      //DBGLN("FSCH(%u) crsf=%u us=%u", ch, ChannelData[ch], newPwmCh.val.failsafe+988U);
       config.SetPwmChannelRaw(ch, newPwmCh.raw);
     }
   }
@@ -214,6 +292,21 @@ static void luaparamSetFalisafe(struct luaPropertiesCommon *item, uint8_t arg)
 
 static void registerLuaParameters()
 {
+  registerLUAParameter(&luaSerialProtocol, [](struct luaPropertiesCommon* item, uint8_t arg){
+    config.SetSerialProtocol((eSerialProtocol)arg);
+    if (config.IsModified()) {
+      deferExecution(100, [](){
+        reconfigureSerial();
+      });
+    }
+  });
+
+  if (config.GetSerialProtocol() == PROTOCOL_SBUS || config.GetSerialProtocol() == PROTOCOL_INVERTED_SBUS || config.GetSerialProtocol() == PROTOCOL_DJI_RS_PRO)
+  {
+    registerLUAParameter(&luaFailsafeMode, [](struct luaPropertiesCommon* item, uint8_t arg){
+      config.SetFailsafeMode((eFailsafeMode)arg);
+    });
+  }
 
   if (GPIO_PIN_ANT_CTRL != UNDEF_PIN)
   {
@@ -275,6 +368,8 @@ static void registerLuaParameters()
 
 static int event()
 {
+  setLuaTextSelectionValue(&luaSerialProtocol, config.GetSerialProtocol());
+  setLuaTextSelectionValue(&luaFailsafeMode, config.GetFailsafeMode());
 
   if (GPIO_PIN_ANT_CTRL != UNDEF_PIN)
   {
@@ -288,7 +383,7 @@ static int event()
   }
 
 #if defined(POWER_OUTPUT_VALUES)
-  setLuaTextSelectionValue(&luaTlmPower, config.GetPower());
+  setLuaTextSelectionValue(&luaTlmPower, config.GetPower() - MinPower);
 #endif
   setLuaTextSelectionValue(&luaRateInitIdx, RATE_MAX - 1 - config.GetRateInitialIdx());
 
@@ -317,7 +412,10 @@ static int event()
 static int timeout()
 {
   luaHandleUpdateParameter();
-  return DURATION_IMMEDIATELY;
+  // Receivers can only `UpdateParamReq == true` every 4th packet due to the transmitter cadence in 1:2
+  // Channels, Downlink Telem Slot, Uplink Telem (the write command), Downlink Telem Slot...
+  // (interval * 4 / 1000) or 1 second if not connected
+  return (connectionState == connected) ? ExpressLRS_currAirRate_Modparams->interval / 250 : 1000;
 }
 
 static int start()

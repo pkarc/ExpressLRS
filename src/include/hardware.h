@@ -9,6 +9,7 @@ typedef enum {
     HARDWARE_radio_busy,
     HARDWARE_radio_busy_2,
     HARDWARE_radio_dio0,
+    HARDWARE_radio_dio0_2,
     HARDWARE_radio_dio1,
     HARDWARE_radio_dio1_2,
     HARDWARE_radio_dio2,
@@ -27,7 +28,7 @@ typedef enum {
 
     // Radio power
     HARDWARE_power_enable,
-    HARDWARE_power_apc1, // stm32
+    HARDWARE_power_apc1,
     HARDWARE_power_apc2,
     HARDWARE_power_rxen,
     HARDWARE_power_txen,
@@ -45,6 +46,7 @@ typedef enum {
 
     HARDWARE_power_control,
     HARDWARE_power_values,
+    HARDWARE_power_values2,
 
     // Input
     HARDWARE_joystick,
@@ -122,6 +124,7 @@ typedef enum {
     HARDWARE_vbat,
     HARDWARE_vbat_offset,
     HARDWARE_vbat_scale,
+    HARDWARE_vbat_atten,
 
     // VTX
     HARDWARE_vtx_amp_pwm,
